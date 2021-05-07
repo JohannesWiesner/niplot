@@ -118,7 +118,6 @@ def plot_img_similarity(img_dict,mask_img,similarity_type='cosine_similarity',
     else:
         vmin_vmax = {'vmin':-1,'vmax':1}
     
-    
     # create heatmap
     ax = sns.heatmap(similarity_matrix,
                      square=True,
