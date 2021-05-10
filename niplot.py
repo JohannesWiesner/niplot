@@ -112,7 +112,6 @@ def plot_img_similarity(img_dict,mask_img,similarity_type='cosine_similarity',
     
     similarity_matrix = get_similarity_matrix(img_dict,mask_img,similarity_type)
     
-    
     if similarity_type == 'cosine_similarity':
         vmin_vmax = {'vmin':0,'vmax':1}
     else:
