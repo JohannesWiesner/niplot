@@ -18,6 +18,13 @@ from nicalc import get_similarity_matrix,calculate_overlap
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import holoviews as hv
+from holoviews import opts, dim
+from bokeh.plotting import show
+hv.extension('bokeh')
+hv.output(size=200)
+
+
 # TODO: add docstring.
 def distplot_imgs(imgs_dict,mask_img,ignore_zeros=True,xlabel='Value',
                   title=None,dst_dir=None,filename=None,**kwargs):
@@ -97,7 +104,6 @@ def barplot_mask_imgs(mask_imgs_dict,mask_img,xlabel='Mask Image',ylabel='Size',
     plt.tight_layout()
     
     if dst_dir:
-        
         if not filename:
             raise ValueError('Please provide a filename')
         
@@ -174,3 +180,98 @@ def plot_mask_img_overlap(mask_img_dict,proportion_type='first',dst_dir=None,fil
     
         dst_path = dst_dir + filename
         plt.savefig(dst_path,dpi=600)
+        
+        
+# TO-DO: Implement rotated labels
+# https://stackoverflow.com/questions/65561927/inverted-label-text-half-turn-for-chord-diagram-on-holoviews-with-bokeh
+# TO-DO: Make plotting work (I can only save the plot as html but can't plot it directly, at least in spyder...)
+def plot_connectogram(connectivity_matrix,atlas_labels,atlas_indices,threshold=10,chord_type=int,dst_dir=None,filename=None):
+    '''Plot a connectivity matrix as a connectogram.
+    
+
+    Parameters
+    ----------
+    connectivity_matrix : np.array
+        A symmetric connectivity matrix.
+    atlas_labels : pd.Series or list
+        A list-like object providing names of each atlas region.
+    atlas_indices : pd.Series or list
+        A list-like object providing indices of each atlas region.
+    threshold : float or int, optional
+        Apply a threshold to the connectivity matrix before plotting. Only connectvity
+        values that are greater or equal than this threshold are visualized. The default is 10.
+    chord_type : int or float, optional
+        Convert the connectivity values to float or int type. If the weight values 
+        are integers, they define the number of chords to 
+        be drawn between the source and target nodes directly. If the weights 
+        are floating point values, they are normalized to a default of 500 chords, 
+        which are divided up among the edges. Any non-zero weight will be assigned 
+        at least one chord. The default is int.
+    dst_dir : str, optional
+        Name of the output directory. The default is None.
+    filename : str, optional
+        Name of the file (must be provided including the extenstion). 
+        The default is None.
+
+
+    Returns
+    -------
+    connectogram_plot : holoviews.element.graphs.Chord
+        The connectogram plot object.
+
+    '''
+    
+    # set lower triangle to NaN (since matrix is symmetric we want to remove duplicates)
+    il = np.tril_indices(len(connectivity_matrix))
+    connectivity_matrix[il] = np.nan
+    
+    # convert to pd.DataFrame for further processing
+    connectivity_matrix_df = pd.DataFrame(data=connectivity_matrix,
+                                          columns=atlas_indices,
+                                          index=atlas_indices)
+    
+    # Ensure that index name has the default name 'Index'
+    if connectivity_matrix_df.index.name:
+        connectivity_matrix_df.index.name = None
+    
+    # stack connectivity_matrix
+    connectivity_matrix_stacked = connectivity_matrix_df.stack().reset_index()
+    connectivity_matrix_stacked.rename(columns={'level_0':'source','value':'target',0:'value'},inplace=True)
+    
+    if chord_type == int:
+        connectivity_matrix_stacked = connectivity_matrix_stacked.astype(int)
+    
+    # reduce to only connections that are not 0
+    connectivity_matrix_stacked = connectivity_matrix_stacked.loc[connectivity_matrix_stacked['value'] != 0,:]
+    
+    # Optional: reduce to only connections >= threshold
+    if threshold:
+        connectivity_matrix_stacked = connectivity_matrix_stacked.loc[connectivity_matrix_stacked['value'] >= threshold,:]
+    
+    # add node infos and show only nodes that also have a connection after subsetting to 
+    # connections that are not zero and (optionally) connections that pass the specified threshold
+    atlas_df = pd.DataFrame({'region_id':atlas_indices,'label':atlas_labels})
+    nodes_to_show = np.unique(connectivity_matrix_stacked[['source','target']].values)
+    atlas_df = atlas_df.loc[atlas_df['region_id'].isin(nodes_to_show)]
+    nodes = hv.Dataset(atlas_df,'region_id','label')
+    
+    # create plot 
+    connectogram_plot = hv.Chord((connectivity_matrix_stacked,nodes),['source','target'],['value'])
+    connectogram_plot.opts(opts.Chord(cmap='Category20',
+                                      edge_cmap='Category20',
+                                      edge_color=dim('source').str(),
+                                      node_color=dim('region_id').str(),
+                                      labels='label'))
+    
+    # save plot 
+    if dst_dir:
+        if not filename:
+            raise ValueError('Please provide a filename')
+
+        dst_path = dst_dir + filename
+        hv.save(connectogram_plot,dst_path)
+    
+    # FIXME: this doesn't work for me in Spyder 4.0
+    show(hv.render(connectogram_plot))
+    
+    return connectogram_plot
