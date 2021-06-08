@@ -221,6 +221,9 @@ def plot_connectogram(connectivity_matrix,atlas_labels,atlas_indices,threshold=1
 
     '''
     
+    # copy matrix
+    connectivity_matrix = connectivity_matrix.copy()
+    
     # set lower triangle to NaN (since matrix is symmetric we want to remove duplicates)
     il = np.tril_indices(len(connectivity_matrix))
     connectivity_matrix[il] = np.nan
@@ -236,7 +239,7 @@ def plot_connectogram(connectivity_matrix,atlas_labels,atlas_indices,threshold=1
     
     # stack connectivity_matrix
     connectivity_matrix_stacked = connectivity_matrix_df.stack().reset_index()
-    connectivity_matrix_stacked.rename(columns={'level_0':'source','value':'target',0:'value'},inplace=True)
+    connectivity_matrix_stacked.columns=['source','target','value']
     
     if chord_type == int:
         connectivity_matrix_stacked = connectivity_matrix_stacked.astype(int)
@@ -261,7 +264,8 @@ def plot_connectogram(connectivity_matrix,atlas_labels,atlas_indices,threshold=1
                                       edge_cmap='Category20',
                                       edge_color=dim('source').str(),
                                       node_color=dim('region_id').str(),
-                                      labels='label'))
+                                      labels='label'
+                                      ))
     
     # save plot 
     if dst_dir:
@@ -271,7 +275,7 @@ def plot_connectogram(connectivity_matrix,atlas_labels,atlas_indices,threshold=1
         dst_path = dst_dir + filename
         hv.save(connectogram_plot,dst_path)
     
-    # FIXME: this doesn't work for me in Spyder 4.0
+    # FIXME: this doesn't work for me in Spyder
     show(hv.render(connectogram_plot))
     
     return connectogram_plot
