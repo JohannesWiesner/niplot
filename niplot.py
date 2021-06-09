@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 import holoviews as hv
 from holoviews import opts, dim
-from bokeh.plotting import show
+from bokeh.io import show
 hv.extension('bokeh')
 hv.output(size=200)
 
