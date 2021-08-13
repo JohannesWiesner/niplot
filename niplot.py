@@ -16,6 +16,7 @@ from itertools import combinations
 from nicalc import get_similarity_matrix,calculate_overlap
 
 import seaborn as sns
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 import holoviews as hv
@@ -348,3 +349,66 @@ def plot_connectivity_matrix(connectivity_matrix,atlas_labels,threshold=None,dst
     show(hv.render(heatmap))
     
     return heatmap
+
+def plot_state_to_state_transitions_heat(E,node_names,transition_names):
+    '''Plot all state-to-state-transitions as heatmaps with slider'''
+
+    n_transitions = E.shape[2]
+    
+    data = [go.Heatmap(visible=False,z=E[:,:,n].T,y=node_names) for n in range(n_transitions)]
+    steps= [{'label':name,'method':'update','args': [{'visible':[v == n for v in range(n_transitions)]}]} for n,name in enumerate(transition_names)]
+    
+    fig = go.Figure(data=data)
+    fig = fig.update_layout(
+        xaxis_title='T',
+        yaxis_title='Area',
+        sliders=[{"active":0,"steps":steps}]
+        )
+    
+    # TO-DO: is the following line right? (Show first state-to-state-transition)
+    fig.data[0].visible = True
+    fig.show()
+
+def plot_state_to_state_transitions_line(E,node_names,transition_names):
+    '''Plot all state-to-state-transitions as lineplots with slider'''
+    
+    n_nodes = E.shape[1]
+    n_transitions = E.shape[2]
+    
+    # create list of traces 
+    # FIXME: could be optimized, because we know the number of traces in advance
+    traces = []
+    
+    for t in range(n_transitions):
+        for n,node_name in enumerate(node_names):
+            traces.append(go.Scattergl(y=E[:,n,t],name=node_name,showlegend=False))
+    
+    # create a list of step dictionaries as required for slider
+    steps = []
+    current_min = 0
+    current_max = n_nodes
+    
+    for name in transition_names:
+    
+        visible = [False for idx in range(n_transitions*n_nodes)]    
+    
+        for idx in range(current_min,current_max):
+            visible[idx] = True
+            
+        step = {'label':name,'method':'update','args':[{'visible':visible}]}
+        steps.append(step)
+             
+        current_min = current_max
+        current_max = current_max + n_nodes
+    
+    # create figure
+    fig = go.Figure(data=traces)
+    fig = fig.update_layout(
+        xaxis_title='T',
+        yaxis_title='u',
+        sliders=[{"active":0,"steps":steps}]
+        )
+    
+    # TO-DO: is the following line right? (Show first state-to-state-transition)
+    fig.data[1].visible = True
+    fig.show()
