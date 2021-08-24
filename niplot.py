@@ -367,7 +367,8 @@ def plot_state_to_state_transitions_heat(E,node_names,transition_names):
     
     # TO-DO: is the following line right? (Show first state-to-state-transition)
     fig.data[0].visible = True
-    fig.show()
+
+    return fig
 
 def plot_state_to_state_transitions_line(E,node_names,transition_names):
     '''Plot all state-to-state-transitions as lineplots with slider'''
@@ -411,4 +412,5 @@ def plot_state_to_state_transitions_line(E,node_names,transition_names):
     
     # TO-DO: is the following line right? (Show first state-to-state-transition)
     fig.data[1].visible = True
-    fig.show()
+
+    return fig
