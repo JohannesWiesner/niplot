@@ -417,20 +417,3 @@ def plot_state_to_state_transitions_line(E,node_names,transition_names):
     fig.data[1].visible = True
 
     return fig
-
-
-def plot_explained_covariance(explained_var):
-    '''Plot a vector of covariances'''
-
-    xaxis_tickvals = list(range(1,len(explained_var)+1))
-    fig = px.scatter(x=xaxis_tickvals,y=explained_var*100)
-    fig.update_traces(mode="lines+markers")
-    fig.update_layout(xaxis_type='category',
-                      xaxis_title='Variate',
-                      yaxis_range=[0,100],
-                      yaxis_dtick=10,
-                      yaxis_title='Explained Covariance (%)',
-                      )
-    
-    return fig
-
