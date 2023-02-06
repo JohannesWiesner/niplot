@@ -29,6 +29,10 @@ import plotly.io as pio
 pio.renderers.default = 'browser'
 import plotly.express as px
 
+####################################################################################################
+## Statistical images  #############################################################################
+####################################################################################################
+
 # TODO: add docstring.
 def distplot_imgs(imgs_dict,mask_img,ignore_zeros=True,xlabel='Value',
                   title=None,dst_dir=None,filename=None,**kwargs):
@@ -79,6 +83,41 @@ def distplot_imgs(imgs_dict,mask_img,ignore_zeros=True,xlabel='Value',
     
     plt.show()
 
+# TODO. add docstring
+def plot_img_similarity(img_dict,mask_img,similarity_type='cosine_similarity',
+                        show_spines=False,dst_dir=None,filename=None):
+
+    similarity_matrix = get_similarity_matrix(img_dict,mask_img,similarity_type)
+
+    if similarity_type == 'cosine_similarity':
+        vmin_vmax = {'vmin':0,'vmax':1}
+    else:
+        vmin_vmax = {'vmin':-1,'vmax':1}
+
+    # create heatmap
+    ax = sns.heatmap(similarity_matrix,
+                     square=True,
+                     cmap='Blues',
+                     annot=True,
+                     **vmin_vmax)
+
+    if show_spines == True:
+        for _, spine in ax.spines.items():
+            spine.set_visible(True)
+
+    plt.yticks(rotation=0)
+
+    if dst_dir:
+        if not filename:
+            raise ValueError('Please provide a filename')
+
+        dst_path = dst_dir + filename
+        plt.savefig(dst_path,dpi=600)
+
+####################################################################################################
+## Binary MRI-images ###############################################################################
+####################################################################################################
+
 # TODO: add docstring.
 def barplot_mask_imgs(mask_imgs_dict,mask_img,xlabel='Mask Image',ylabel='Size',
                       title=None,dst_dir=None,filename=None,**kwargs):
@@ -116,37 +155,6 @@ def barplot_mask_imgs(mask_imgs_dict,mask_img,xlabel='Mask Image',ylabel='Size',
     
     plt.show()
     
-# TODO. add docstring
-def plot_img_similarity(img_dict,mask_img,similarity_type='cosine_similarity',
-                        show_spines=False,dst_dir=None,filename=None):
-    
-    similarity_matrix = get_similarity_matrix(img_dict,mask_img,similarity_type)
-    
-    if similarity_type == 'cosine_similarity':
-        vmin_vmax = {'vmin':0,'vmax':1}
-    else:
-        vmin_vmax = {'vmin':-1,'vmax':1}
-    
-    # create heatmap
-    ax = sns.heatmap(similarity_matrix,
-                     square=True,
-                     cmap='Blues',
-                     annot=True,
-                     **vmin_vmax)
-    
-    if show_spines == True:
-        for _, spine in ax.spines.items():
-            spine.set_visible(True)
-    
-    plt.yticks(rotation=0) 
-    
-    if dst_dir:
-        if not filename:
-            raise ValueError('Please provide a filename')
-    
-        dst_path = dst_dir + filename
-        plt.savefig(dst_path,dpi=600)
-
 # TODO: add docstring.
 # FIMXE: Follow same structure as in plot_img_similarity
 # Create get_mask_img_overlap_matrix function
@@ -185,7 +193,10 @@ def plot_mask_img_overlap(mask_img_dict,proportion_type='first',dst_dir=None,fil
         dst_path = dst_dir + filename
         plt.savefig(dst_path,dpi=600)
         
-        
+####################################################################################################
+## DTI #############################################################################################
+####################################################################################################
+
 # TO-DO: Implement rotated labels
 # https://stackoverflow.com/questions/65561927/inverted-label-text-half-turn-for-chord-diagram-on-holoviews-with-bokeh
 # TO-DO: Make plotting work (I can only save the plot as html but can't plot it directly, at least in spyder...)
@@ -353,6 +364,10 @@ def plot_connectivity_matrix(connectivity_matrix,atlas_labels,threshold=None,dst
     
     return heatmap
 
+####################################################################################################
+## Network Control Theory ##########################################################################
+####################################################################################################
+
 def plot_state_to_state_transitions_heat(E,node_names,transition_names):
     '''Plot all state-to-state-transitions as heatmaps with slider'''
 
@@ -415,5 +430,102 @@ def plot_state_to_state_transitions_line(E,node_names,transition_names):
     
     # TO-DO: is the following line right? (Show first state-to-state-transition)
     fig.data[1].visible = True
+
+    return fig
+
+####################################################################################################
+## fMRI ############################################################################################
+####################################################################################################
+
+# TODO: Should include something like n_keys which means that a random set
+# of keys is selected from the matrix in order to
+# FIXME: n_cols should be named n_random_matrix_columns
+def plot_matrix_dict(matrix_dict,labels,subplot_cols,subplot_rows,n_cols=None,rng=None,colors=None):
+    '''Plot a dictionary of matrices as lineplots. Common usecase: Each key is a subject id
+    and every matrix represents the fmri time series of that subject (where the
+    rows in the matrix represent time and the columns represent regions). Each
+    subplot corresponds to one matrix.
+
+    Parameters
+    ----------
+    matrix_dict : dict
+        A dictionary of 2D numpy arrays.
+    labels : list-like
+        The column labels for the 2D array. When plotting fmri time series,
+        this corresponds to the names of the brain regions
+    subplot_cols : int
+        Number of subplot columns. The product of subplot_cols *
+        subplot_rows has to equal the number of subplots.
+    subplot_rows : int
+        Number of subplot rows. The product of subplot_cols *
+        subplot_rows has to equal the number of subplots.
+    n_cols : int, optional
+        If specified, a random set of columns of that size is sampled from the matrices.
+        This helps, when the number of columns is very big. The default is None.
+    rng : numpy.random.default_rng, optional
+        A random number generator. Needed when n_cols is specified. The default is None.
+    colors: plotly.colors palette, optional
+        A color palette from plotly. If not specified uses default colors.
+
+    Returns
+    -------
+    fig : plotly.figure
+
+    '''
+
+
+    # if n_cols is specified get a random sample of indices for n_cols
+    # otherwise plot all matrix columns
+    if n_cols:
+        try:
+            column_indices = rng.choice(range(len(labels)),n_cols,replace=False)
+        except AttributeError:
+            print('Please provide a random number generator')
+            return
+    else:
+        column_indices = range(len(labels))
+
+    # check that each matrix gets one subplot
+    n_subplots = subplot_rows * subplot_cols
+    if n_subplots != len(matrix_dict):
+      raise ValueError('The number of rows and columns must equal the number of provided matrices')
+
+    # get all possible subplot_indices for the subplots
+    # TODO: There might be a more elegant way to do this. Can't we just
+    # return all the axes like we can do with matplotlib so we can just
+    # iterate over a list of axes?
+    subplot_indices = []
+    for row in range(1, subplot_rows + 1):
+         for col in range(1, subplot_cols + 1):
+            subplot_indices.append([row, col])
+
+    # create subplot for each matrix in the list
+    if not colors:
+        colors = plotly.colors.DEFAULT_PLOTLY_COLORS
+
+    fig = make_subplots(rows=subplot_rows,cols=subplot_cols,subplot_titles=list(matrix_dict.keys()))
+
+    # fill each subplot with the time series of that matrix using n_cols
+    for matrix,(row,col) in zip(matrix_dict.values(),subplot_indices):
+        for idx,col_idx in enumerate(column_indices):
+            trace = go.Scattergl(y=matrix[:,col_idx],
+                                 line=dict(color=colors[idx]),
+                                 name=labels[col_idx],
+                                 legendgroup=labels[col_idx]
+                                 )
+            fig.append_trace(trace,row,col)
+
+    # delete duplicate legend entries
+    names = set()
+    fig.for_each_trace(
+        lambda trace:
+            trace.update(showlegend=False)
+            if (trace.name in names) else names.add(trace.name))
+
+    # cosmetics
+    fig.update_xaxes(title='Scan Number')
+    fig.update_yaxes(title='Signal')
+
+    fig.show()
 
     return fig
